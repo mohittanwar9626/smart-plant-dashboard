@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Smart Plant Monitoring System</title>
+
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+    }
+
+    body {
+      background: #f4f7f6;
+      color: #222;
+      padding: 20px;
+    }
+
+    .header {
+      background: #1f7a4d;
+      color: white;
+      padding: 22px;
+      border-radius: 15px;
+      margin-bottom: 20px;
+    }
+
+    .header h1 {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+
+    .header p {
+      opacity: 0.9;
+    }
+
+    .connection {
+      background: white;
+      padding: 15px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+    }
+
+    .connection input {
+      padding: 10px;
+      margin: 5px;
+      border: 1px solid #ccc;
+      border-radius: 7px;
+      width: 200px;
+    }
+
+    button {
+      padding: 10px 18px;
+      background: #1f7a4d;
+      color: white;
+      border: none;
+      border-radius: 7px;
+      cursor: pointer;
+      margin: 5px;
+    }
+
+    button:hover {
+      background: #155c39;
+    }
+
+    #status {
+      font-weight: bold;
+      margin-top: 8px;
+    }
+
+    .plants {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 18px;
+    }
+
+    .plant-card {
+      background: white;
+      padding: 20px;
+      border-radius: 15px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+
+    .plant-card h2 {
+      color: #1f7a4d;
+      margin-bottom: 18px;
+    }
+
+    .moisture {
+      font-size: 38px;
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+
+    .bar {
+      height: 15px;
+      background: #ddd;
+      border-radius: 10px;
+      overflow: hidden;
+      margin: 10px 0 18px;
+    }
+
+    .bar-fill {
+      height: 100%;
+      width: 0%;
+      background: #1f7a4d;
+      transition: width 0.5s;
+    }
+
+    .info {
+      display: flex;
+      justify-content: space-between;
+      padding: 9px 0;
+      border-bottom: 1px solid #eee;
+    }
+
+    .pump-on {
+      color: #16803c;
+      font-weight: bold;
+    }
+
+    .pump-off {
+      color: #777;
+      font-weight: bold;
+    }
+
+    .environment {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 18px;
+      margin-top: 20px;
+    }
+
+    .env-card {
+      background: white;
+      padding: 20px;
+      border-radius: 15px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+
+    .env-card h3 {
+      color: #555;
+      margin-bottom: 10px;
+    }
+
+    .env-value {
+      font-size: 30px;
+      font-weight: bold;
+      color: #1f7a4d;
+    }
+
+    .last-update {
+      text-align: center;
+      margin-top: 20px;
+      color: #777;
+      font-size: 14px;
+    }
+
+    @media(max-width: 600px) {
+      body {
+        padding: 10px;
+      }
+
+      .header h1 {
+        font-size: 22px;
+      }
+
+      .connection input {
+        width: 100%;
+        margin: 5px 0;
+      }
+
+      button {
+        width: 100%;
+        margin: 5px 0;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="header">
+    <h1>🌱 Smart Plant Monitoring System</h1>
+    <p>IoT based real-time monitoring for 4 plants</p>
+  </div>
+
+  <div class="connection">
+
+    <h3>MQTT Cloud Connection</h3>
+
+    <input
+      type="text"
+      id="username"
+      placeholder="MQTT Username"
+    >
+
+    <input
+      type="password"
+      id="password"
+      placeholder="MQTT Password"
+    >
+
+    <button onclick="connectMQTT()">
+      Connect
+    </button>
+
+    <div id="status">
+      🔴 Disconnected
+    </div>
+
+  </div>
+
+
+  <!-- FOUR PLANTS -->
+
+  <div class="plants">
+
+    <!-- PLANT 1 -->
+    <div class="plant-card">
+
+      <h2>🌿 Plant 1</h2>
+
+      <div class="moisture">
+        <span id="moisture1">--</span>%
+      </div>
+
+      <div class="bar">
+        <div
+          class="bar-fill"
+          id="bar1">
+        </div>
+      </div>
+
+      <div class="info">
+        <span>Plant Health</span>
+        <strong id="health1">--</strong>
+      </div>
+
+      <div class="info">
+        <span>Pump</span>
+        <strong id="pump1">--</strong>
+      </div>
+
+    </div>
+
+
+    <!-- PLANT 2 -->
+    <div class="plant-card">
+
+      <h2>🌿 Plant 2</h2>
+
+      <div class="moisture">
+        <span id="moisture2">--</span>%
+      </div>
+
+      <div class="bar">
+        <div
+          class="bar-fill"
+          id="bar2">
+        </div>
+      </div>
+
+      <div class="info">
+        <span>Plant Health</span>
+        <strong id="health2">--</strong>
+      </div>
+
+      <div class="info">
+        <span>Pump</span>
+        <strong id="pump2">--</strong>
+      </div>
+
+    </div>
+
+
+    <!-- PLANT 3 -->
+    <div class="plant-card">
+
+      <h2>🌿 Plant 3</h2>
+
+      <div class="moisture">
+        <span id="moisture3">--</span>%
+      </div>
+
+      <div class="bar">
+        <div
+          class="bar-fill"
+          id="bar3">
+        </div>
+      </div>
+
+      <div class="info">
+        <span>Plant Health</span>
+        <strong id="health3">--</strong>
+      </div>
+
+      <div class="info">
+        <span>Pump</span>
+        <strong id="pump3">--</strong>
+      </div>
+
+    </div>
+
+
+    <!-- PLANT 4 -->
+    <div class="plant-card">
+
+      <h2>🌿 Plant 4</h2>
+
+      <div class="moisture">
+        <span id="moisture4">--</span>%
+      </div>
+
+      <div class="bar">
+        <div
+          class="bar-fill"
+          id="bar4">
+        </div>
+      </div>
+
+      <div class="info">
+        <span>Plant Health</span>
+        <strong id="health4">--</strong>
+      </div>
+
+      <div class="info">
+        <span>Pump</span>
+        <strong id="pump4">--</strong>
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <!-- ENVIRONMENT -->
+
+  <div class="environment">
+
+    <div class="env-card">
+      <h3>🌡️ Temperature</h3>
+      <div class="env-value">
+        <span id="temperature">--</span> °C
+      </div>
+    </div>
+
+    <div class="env-card">
+      <h3>💧 Humidity</h3>
+      <div class="env-value">
+        <span id="humidity">--</span> %
+      </div>
+    </div>
+
+    <div class="env-card">
+      <h3>🚰 Water Tank</h3>
+      <div class="env-value">
+        <span id="tank">--</span> %
+      </div>
+    </div>
+
+  </div>
+
+
+  <div class="last-update">
+    Last Update:
+    <span id="lastUpdate">Waiting for data...</span>
+  </div>
+
+
+<script>
+
+const MQTT_HOST =
+"88a3489144f34bb981a1bc962ae2c91b.s1.eu.hivemq.cloud";
+
+const MQTT_PORT = 8884;
+
+let client;
+
+
+// CONNECT TO HIVEMQ
+
+function connectMQTT() {
+
+  const username =
+    document.getElementById("username").value;
+
+  const password =
+    document.getElementById("password").value;
+
+  if (!username || !password) {
+
+    alert("Please enter MQTT username and password.");
+
+    return;
+  }
+
+
+  document.getElementById("status").innerHTML =
+    "🟡 Connecting...";
+
+
+  client = mqtt.connect(
+    "wss://" + MQTT_HOST + ":" + MQTT_PORT + "/mqtt",
+    {
+      username: username,
+      password: password,
+      clean: true,
+      reconnectPeriod: 3000
+    }
+  );
+
+
+  client.on("connect", function() {
+
+    document.getElementById("status").innerHTML =
+      "🟢 MQTT Cloud Connected";
+
+    console.log("Connected to HiveMQ");
+
+
+    // FOUR PLANT MOISTURE TOPICS
+
+    client.subscribe("plant/+/moisture");
+
+    // FOUR PUMP TOPICS
+
+    client.subscribe("plant/+/pump");
+
+    // ENVIRONMENT
+
+    client.subscribe("environment/temperature");
+
+    client.subscribe("environment/humidity");
+
+    client.subscribe("tank/level");
+
+  });
+
+
+  client.on("message", function(topic, message) {
+
+    const value =
+      message.toString();
+
+
+    console.log(topic + " = " + value);
+
+
+    // PLANT MOISTURE
+
+    if (topic === "plant/1/moisture") {
+
+      updatePlant(1, value);
+
+    }
+
+    if (topic === "plant/2/moisture") {
+
+      updatePlant(2, value);
+
+    }
+
+    if (topic === "plant/3/moisture") {
+
+      updatePlant(3, value);
+
+    }
+
+    if (topic === "plant/4/moisture") {
+
+      updatePlant(4, value);
+
+    }
+
+
+    // PUMP STATUS
+
+    if (topic === "plant/1/pump") {
+
+      updatePump(1, value);
+
+    }
+
+    if (topic === "plant/2/pump") {
+
+      updatePump(2, value);
+
+    }
+
+    if (topic === "plant/3/pump") {
+
+      updatePump(3, value);
+
+    }
+
+    if (topic === "plant/4/pump") {
+
+      updatePump(4, value);
+
+    }
+
+
+    // ENVIRONMENT
+
+    if (topic === "environment/temperature") {
+
+      document.getElementById("temperature").innerText =
+        value;
+
+    }
+
+
+    if (topic === "environment/humidity") {
+
+      document.getElementById("humidity").innerText =
+        value;
+
+    }
+
+
+    if (topic === "tank/level") {
+
+      document.getElementById("tank").innerText =
+        value;
+
+    }
+
+
+    document.getElementById("lastUpdate").innerText =
+      new Date().toLocaleTimeString();
+
+  });
+
+
+  client.on("error", function(error) {
+
+    console.log("MQTT Error:", error);
+
+    document.getElementById("status").innerHTML =
+      "🔴 MQTT Error";
+
+  });
+
+
+  client.on("offline", function() {
+
+    document.getElementById("status").innerHTML =
+      "🔴 MQTT Offline";
+
+  });
+
+}
+
+
+
+// UPDATE MOISTURE
+
+function updatePlant(plant, value) {
+
+  let moisture =
+    parseInt(value);
+
+
+  if (isNaN(moisture)) {
+
+    return;
+
+  }
+
+
+  if (moisture < 0) {
+
+    moisture = 0;
+
+  }
+
+  if (moisture > 100) {
+
+    moisture = 100;
+
+  }
+
+
+  document.getElementById(
+    "moisture" + plant
+  ).innerText = moisture;
+
+
+  document.getElementById(
+    "bar" + plant
+  ).style.width = moisture + "%";
+
+
+  let health;
+
+
+  if (moisture < 30) {
+
+    health = "DRY";
+
+  }
+
+  else if (moisture < 60) {
+
+    health = "GOOD";
+
+  }
+
+  else {
+
+    health = "WET";
+
+  }
+
+
+  document.getElementById(
+    "health" + plant
+  ).innerText = health;
+
+}
+
+
+
+// UPDATE PUMP
+
+function updatePump(plant, value) {
+
+  const pump =
+    document.getElementById(
+      "pump" + plant
+    );
+
+
+  if (value.toUpperCase() === "ON") {
+
+    pump.innerText = "🟢 ON";
+
+    pump.className = "pump-on";
+
+  }
+
+  else {
+
+    pump.innerText = "⚪ OFF";
+
+    pump.className = "pump-off";
+
+  }
+
+}
+
+</script>
+
+</body>
+</html>
