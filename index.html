@@ -28,6 +28,11 @@
       padding: 22px;
       border-radius: 15px;
       margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
     }
 
     .header h1 {
@@ -37,6 +42,25 @@
 
     .header p {
       opacity: 0.9;
+    }
+
+    /* REFRESH BUTTON STYLING */
+    .refresh-btn {
+      padding: 12px 20px;
+      background: #ffffff;
+      color: #1f7a4d;
+      font-weight: bold;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 15px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+      transition: all 0.3s ease;
+    }
+
+    .refresh-btn:hover {
+      background: #e2f0d9;
+      transform: scale(1.04);
     }
 
     .connection {
@@ -176,7 +200,7 @@
         margin: 5px 0;
       }
 
-      button {
+      button, .refresh-btn {
         width: 100%;
         margin: 5px 0;
       }
@@ -187,12 +211,15 @@
 <body>
 
   <div class="header">
-    <h1>🌱 Smart Plant Monitoring System</h1>
-    <p>IoT based real-time monitoring for 4 plants</p>
+    <div>
+      <h1>🌱 Smart Plant Monitoring System</h1>
+      <p>IoT based real-time monitoring for 4 plants</p>
+    </div>
+    <!-- REFRESH BUTTON -->
+    <button class="refresh-btn" onclick="refreshDashboard()">🔄 Refresh Dashboard</button>
   </div>
 
   <div class="connection">
-
     <h3>MQTT Cloud Connection</h3>
 
     <input
@@ -224,117 +251,81 @@
 
     <!-- PLANT 1 -->
     <div class="plant-card">
-
       <h2>🌿 Plant 1</h2>
-
       <div class="moisture">
         <span id="moisture1">--</span>%
       </div>
-
       <div class="bar">
-        <div
-          class="bar-fill"
-          id="bar1">
-        </div>
+        <div class="bar-fill" id="bar1"></div>
       </div>
-
       <div class="info">
         <span>Plant Health</span>
         <strong id="health1">--</strong>
       </div>
-
       <div class="info">
         <span>Pump</span>
         <strong id="pump1">--</strong>
       </div>
-
     </div>
 
 
     <!-- PLANT 2 -->
     <div class="plant-card">
-
       <h2>🌿 Plant 2</h2>
-
       <div class="moisture">
         <span id="moisture2">--</span>%
       </div>
-
       <div class="bar">
-        <div
-          class="bar-fill"
-          id="bar2">
-        </div>
+        <div class="bar-fill" id="bar2"></div>
       </div>
-
       <div class="info">
         <span>Plant Health</span>
         <strong id="health2">--</strong>
       </div>
-
       <div class="info">
         <span>Pump</span>
         <strong id="pump2">--</strong>
       </div>
-
     </div>
 
 
     <!-- PLANT 3 -->
     <div class="plant-card">
-
       <h2>🌿 Plant 3</h2>
-
       <div class="moisture">
         <span id="moisture3">--</span>%
       </div>
-
       <div class="bar">
-        <div
-          class="bar-fill"
-          id="bar3">
-        </div>
+        <div class="bar-fill" id="bar3"></div>
       </div>
-
       <div class="info">
         <span>Plant Health</span>
         <strong id="health3">--</strong>
       </div>
-
       <div class="info">
         <span>Pump</span>
         <strong id="pump3">--</strong>
       </div>
-
     </div>
 
 
     <!-- PLANT 4 -->
     <div class="plant-card">
-
       <h2>🌿 Plant 4</h2>
-
       <div class="moisture">
         <span id="moisture4">--</span>%
       </div>
-
       <div class="bar">
-        <div
-          class="bar-fill"
-          id="bar4">
-        </div>
+        <div class="bar-fill" id="bar4"></div>
       </div>
-
       <div class="info">
         <span>Plant Health</span>
         <strong id="health4">--</strong>
       </div>
-
       <div class="info">
         <span>Pump</span>
         <strong id="pump4">--</strong>
       </div>
-
     </div>
 
   </div>
@@ -376,35 +367,44 @@
 
 <script>
 
-const MQTT_HOST =
-"88a3489144f34bb981a1bc962ae2c91b.s1.eu.hivemq.cloud";
-
+const MQTT_HOST = "88a3489144f34bb981a1bc962ae2c91b.s1.eu.hivemq.cloud";
 const MQTT_PORT = 8884;
 
 let client;
 
+// Auto-fill and auto-connect on page refresh if credentials exist
+window.onload = function() {
+  const savedUser = localStorage.getItem("mqtt_username");
+  const savedPass = localStorage.getItem("mqtt_password");
+
+  if (savedUser && savedPass) {
+    document.getElementById("username").value = savedUser;
+    document.getElementById("password").value = savedPass;
+    connectMQTT();
+  }
+};
+
 
 // CONNECT TO HIVEMQ
-
 function connectMQTT() {
 
-  const username =
-    document.getElementById("username").value;
-
-  const password =
-    document.getElementById("password").value;
+  const username = document.getElementById("username").value;
+  const password = document.getElementById("password").value;
 
   if (!username || !password) {
-
     alert("Please enter MQTT username and password.");
-
     return;
   }
 
+  // Save Credentials to Browser Local Storage
+  localStorage.setItem("mqtt_username", username);
+  localStorage.setItem("mqtt_password", password);
 
-  document.getElementById("status").innerHTML =
-    "🟡 Connecting...";
+  document.getElementById("status").innerHTML = "🟡 Connecting...";
 
+  if (client) {
+    client.end();
+  }
 
   client = mqtt.connect(
     "wss://" + MQTT_HOST + ":" + MQTT_PORT + "/mqtt",
@@ -418,242 +418,114 @@ function connectMQTT() {
 
 
   client.on("connect", function() {
-
-    document.getElementById("status").innerHTML =
-      "🟢 MQTT Cloud Connected";
-
+    document.getElementById("status").innerHTML = "🟢 MQTT Cloud Connected";
     console.log("Connected to HiveMQ");
-
-
-    // FOUR PLANT MOISTURE TOPICS
-
-    client.subscribe("plant/+/moisture");
-
-    // FOUR PUMP TOPICS
-
-    client.subscribe("plant/+/pump");
-
-    // ENVIRONMENT
-
-    client.subscribe("environment/temperature");
-
-    client.subscribe("environment/humidity");
-
-    client.subscribe("tank/level");
-
+    subscribeTopics();
   });
 
 
   client.on("message", function(topic, message) {
-
-    const value =
-      message.toString();
-
-
+    const value = message.toString();
     console.log(topic + " = " + value);
 
-
     // PLANT MOISTURE
-
-    if (topic === "plant/1/moisture") {
-
-      updatePlant(1, value);
-
-    }
-
-    if (topic === "plant/2/moisture") {
-
-      updatePlant(2, value);
-
-    }
-
-    if (topic === "plant/3/moisture") {
-
-      updatePlant(3, value);
-
-    }
-
-    if (topic === "plant/4/moisture") {
-
-      updatePlant(4, value);
-
-    }
-
+    if (topic === "plant/1/moisture") updatePlant(1, value);
+    if (topic === "plant/2/moisture") updatePlant(2, value);
+    if (topic === "plant/3/moisture") updatePlant(3, value);
+    if (topic === "plant/4/moisture") updatePlant(4, value);
 
     // PUMP STATUS
-
-    if (topic === "plant/1/pump") {
-
-      updatePump(1, value);
-
-    }
-
-    if (topic === "plant/2/pump") {
-
-      updatePump(2, value);
-
-    }
-
-    if (topic === "plant/3/pump") {
-
-      updatePump(3, value);
-
-    }
-
-    if (topic === "plant/4/pump") {
-
-      updatePump(4, value);
-
-    }
-
+    if (topic === "plant/1/pump") updatePump(1, value);
+    if (topic === "plant/2/pump") updatePump(2, value);
+    if (topic === "plant/3/pump") updatePump(3, value);
+    if (topic === "plant/4/pump") updatePump(4, value);
 
     // ENVIRONMENT
-
     if (topic === "environment/temperature") {
-
-      document.getElementById("temperature").innerText =
-        value;
-
+      document.getElementById("temperature").innerText = value;
     }
-
-
     if (topic === "environment/humidity") {
-
-      document.getElementById("humidity").innerText =
-        value;
-
+      document.getElementById("humidity").innerText = value;
     }
-
-
     if (topic === "tank/level") {
-
-      document.getElementById("tank").innerText =
-        value;
-
+      document.getElementById("tank").innerText = value;
     }
 
-
-    document.getElementById("lastUpdate").innerText =
-      new Date().toLocaleTimeString();
-
+    document.getElementById("lastUpdate").innerText = new Date().toLocaleTimeString();
   });
 
 
   client.on("error", function(error) {
-
     console.log("MQTT Error:", error);
-
-    document.getElementById("status").innerHTML =
-      "🔴 MQTT Error";
-
+    document.getElementById("status").innerHTML = "🔴 MQTT Error";
   });
 
 
   client.on("offline", function() {
-
-    document.getElementById("status").innerHTML =
-      "🔴 MQTT Offline";
-
+    document.getElementById("status").innerHTML = "🔴 MQTT Offline";
   });
-
 }
 
+
+// SUBSCRIBE FUNCTION
+function subscribeTopics() {
+  if (!client || !client.connected) return;
+
+  client.subscribe("plant/+/moisture");
+  client.subscribe("plant/+/pump");
+  client.subscribe("environment/temperature");
+  client.subscribe("environment/humidity");
+  client.subscribe("tank/level");
+}
+
+
+// REFRESH DASHBOARD FUNCTION
+function refreshDashboard() {
+  if (client && client.connected) {
+    document.getElementById("lastUpdate").innerText = "Refreshing data...";
+    subscribeTopics(); // Re-subscribe to fetch latest values
+  } else {
+    connectMQTT();
+  }
+}
 
 
 // UPDATE MOISTURE
-
 function updatePlant(plant, value) {
+  let moisture = parseInt(value);
 
-  let moisture =
-    parseInt(value);
+  if (isNaN(moisture)) return;
 
+  if (moisture < 0) moisture = 0;
+  if (moisture > 100) moisture = 100;
 
-  if (isNaN(moisture)) {
-
-    return;
-
-  }
-
-
-  if (moisture < 0) {
-
-    moisture = 0;
-
-  }
-
-  if (moisture > 100) {
-
-    moisture = 100;
-
-  }
-
-
-  document.getElementById(
-    "moisture" + plant
-  ).innerText = moisture;
-
-
-  document.getElementById(
-    "bar" + plant
-  ).style.width = moisture + "%";
-
+  document.getElementById("moisture" + plant).innerText = moisture;
+  document.getElementById("bar" + plant).style.width = moisture + "%";
 
   let health;
-
-
   if (moisture < 30) {
-
     health = "DRY";
-
-  }
-
-  else if (moisture < 60) {
-
+  } else if (moisture < 60) {
     health = "GOOD";
-
-  }
-
-  else {
-
+  } else {
     health = "WET";
-
   }
 
-
-  document.getElementById(
-    "health" + plant
-  ).innerText = health;
-
+  document.getElementById("health" + plant).innerText = health;
 }
 
 
-
 // UPDATE PUMP
-
 function updatePump(plant, value) {
-
-  const pump =
-    document.getElementById(
-      "pump" + plant
-    );
-
+  const pump = document.getElementById("pump" + plant);
 
   if (value.toUpperCase() === "ON") {
-
     pump.innerText = "🟢 ON";
-
     pump.className = "pump-on";
-
-  }
-
-  else {
-
+  } else {
     pump.innerText = "⚪ OFF";
-
     pump.className = "pump-off";
-
   }
-
 }
 
 </script>
